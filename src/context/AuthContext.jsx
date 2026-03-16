@@ -2,7 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:3001/api';
+
+const API_URL = 'http://localhost:3006/api';
 
 const AuthContext = createContext();
 
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       }
     } catch (error) {
+      console.error('Erro detalhado:', error); 
       toast.error(error.response?.data?.message || 'Erro ao fazer login');
       return { success: false, error: error.response?.data?.message };
     }
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       }
     } catch (error) {
+      console.error('Erro detalhado:', error); 
       toast.error(error.response?.data?.message || 'Erro ao cadastrar');
       return { success: false, error: error.response?.data?.message };
     }

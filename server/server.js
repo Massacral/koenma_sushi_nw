@@ -6,11 +6,25 @@ const { pool, testConnection } = require('./db');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3006; 
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+// ========== CONFIGURAÇÕES IMPORTANTES ==========
+// Aumentar limite de tamanho dos cabeçalhos para evitar erro 431
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Configurar CORS para permitir frontend nas portas 3000, 3001 e 3007
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3007'],
+  credentials: true,
+  maxAge: 86400 // Cache de preflight por 24h
+}));
+
+// Middleware para log de requisições (útil para debug)
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+  next();
+});
 
 // Testar conexão com o banco
 testConnection();
@@ -21,6 +35,14 @@ testConnection();
 app.post('/api/register', async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
+
+    // Validação básica
+    if (!nome || !email || !senha) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos os campos são obrigatórios'
+      });
+    }
 
     // Verificar se usuário já existe
     const [existingUser] = await pool.query(
@@ -64,7 +86,7 @@ app.post('/api/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erro no registro:', error);
+    console.error('❌ Erro no registro:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -76,6 +98,14 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
+
+    // Validação básica
+    if (!email || !senha) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email e senha são obrigatórios'
+      });
+    }
 
     // Buscar usuário
     const [users] = await pool.query(
@@ -122,7 +152,7 @@ app.post('/api/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erro no login:', error);
+    console.error('❌ Erro no login:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -138,7 +168,7 @@ app.get('/api/produtos', async (req, res) => {
     const [produtos] = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
     res.json(produtos);
   } catch (error) {
-    console.error('Erro ao buscar produtos:', error);
+    console.error('❌ Erro ao buscar produtos:', error);
     res.status(500).json({ error: 'Erro ao buscar produtos' });
   }
 });
@@ -160,7 +190,7 @@ app.get('/api/produtos/:id', async (req, res) => {
 
     res.json(produto);
   } catch (error) {
-    console.error('Erro ao buscar produto:', error);
+    console.error('❌ Erro ao buscar produto:', error);
     res.status(500).json({ error: 'Erro ao buscar produto' });
   }
 });
@@ -174,7 +204,7 @@ app.get('/api/produtos/categoria/:categoria', async (req, res) => {
     );
     res.json(produtos);
   } catch (error) {
-    console.error('Erro ao buscar produtos por categoria:', error);
+    console.error('❌ Erro ao buscar produtos por categoria:', error);
     res.status(500).json({ error: 'Erro ao buscar produtos' });
   }
 });
@@ -187,7 +217,7 @@ app.get('/api/produtos/destaque/destaques', async (req, res) => {
     );
     res.json(produtos);
   } catch (error) {
-    console.error('Erro ao buscar produtos em destaque:', error);
+    console.error('❌ Erro ao buscar produtos em destaque:', error);
     res.status(500).json({ error: 'Erro ao buscar produtos' });
   }
 });
@@ -221,7 +251,7 @@ app.post('/api/carrinho', async (req, res) => {
 
     res.json({ success: true, message: 'Produto adicionado ao carrinho' });
   } catch (error) {
-    console.error('Erro ao adicionar ao carrinho:', error);
+    console.error('❌ Erro ao adicionar ao carrinho:', error);
     res.status(500).json({ error: 'Erro ao adicionar ao carrinho' });
   }
 });
@@ -238,7 +268,7 @@ app.get('/api/carrinho/:usuarioId', async (req, res) => {
     );
     res.json(itens);
   } catch (error) {
-    console.error('Erro ao buscar carrinho:', error);
+    console.error('❌ Erro ao buscar carrinho:', error);
     res.status(500).json({ error: 'Erro ao buscar carrinho' });
   }
 });
@@ -249,7 +279,7 @@ app.delete('/api/carrinho/:id', async (req, res) => {
     await pool.query('DELETE FROM carrinho WHERE id = ?', [req.params.id]);
     res.json({ success: true, message: 'Item removido do carrinho' });
   } catch (error) {
-    console.error('Erro ao remover do carrinho:', error);
+    console.error('❌ Erro ao remover do carrinho:', error);
     res.status(500).json({ error: 'Erro ao remover do carrinho' });
   }
 });
@@ -286,7 +316,7 @@ app.post('/api/pedidos', async (req, res) => {
 
   } catch (error) {
     await connection.rollback();
-    console.error('Erro ao criar pedido:', error);
+    console.error('❌ Erro ao criar pedido:', error);
     res.status(500).json({ error: 'Erro ao criar pedido' });
   } finally {
     connection.release();
@@ -308,21 +338,31 @@ app.get('/api/pedidos/:usuarioId', async (req, res) => {
     );
     res.json(pedidos);
   } catch (error) {
-    console.error('Erro ao buscar pedidos:', error);
+    console.error('❌ Erro ao buscar pedidos:', error);
     res.status(500).json({ error: 'Erro ao buscar pedidos' });
   }
 });
 
 // ========== ROTA DE FALLBACK PARA O REACT ==========
-// Redireciona todas as rotas não-API para o React
-app.get('*', (req, res) => {
-  // Se a rota NÃO começar com /api, redireciona para o React
+// Redireciona todas as rotas não-API para o React (versão compatível com Express 5+)
+app.use((req, res, next) => {
+  // Se a rota NÃO começar com /api, redireciona para o React na porta 3001
   if (!req.path.startsWith('/api')) {
-    res.redirect(`http://localhost:3000${req.path}`);
+    console.log(`🔄 Redirecionando: ${req.path} → http://localhost:3001${req.path}`);
+    res.redirect(`http://localhost:3001${req.path}`);
+  } else {
+    next();
   }
+});
+
+// ========== ROTA 404 PARA APIs ==========
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Rota API não encontrada' });
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`✅ Servidor rodando na porta ${PORT}`);
+  console.log(`📌 Frontend esperado em: http://localhost:3001 ou http://localhost:3007`);
+  console.log(`📌 API disponível em: http://localhost:${PORT}/api`);
 });
