@@ -10,26 +10,57 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
+// ===== CONFIGURAÇÃO CORS CORRIGIDA =====
+// Lista de origens permitidas
+const allowedOrigins = [
+  'https://koenma-sushi-frontend.onrender.com',
+  'http://localhost:3000',
+  'http://localhost:3001'
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permite requisições sem origin (como apps mobile ou curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ Origem bloqueada pelo CORS:', origin);
+      callback(null, true); // Em desenvolvimento, permite todas
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Middleware para OPTIONS (pré-requisição CORS)
+app.options('*', cors());
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
-// Configuração do MySQL
+// Configuração do MySQL (TiDB Cloud)
 const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'koenma_sushi_nw'
+  database: process.env.DB_NAME || 'koenma_sushi_nw',
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true
+  }
 });
 
-// Conectar ao MySQL
+// Conectar ao MySQL (TiDB Cloud)
 db.connect((err) => {
   if (err) {
-    console.error('❌ Erro ao conectar ao MySQL:', err);
-    console.log('Verifique se o MySQL está rodando e as credenciais estão corretas');
+    console.error('❌ Erro ao conectar ao TiDB:', err);
+    console.log('Verifique as variáveis de ambiente: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME');
     return;
   }
-  console.log('✅ Conectado ao MySQL!');
+  console.log('✅ Conectado ao TiDB Cloud com sucesso!');
   console.log('📁 Banco de dados:', db.config.database);
 });
 
@@ -232,7 +263,7 @@ app.get('/api/pedidos/:usuarioId', (req, res) => {
   
   const queryPedidos = `
     SELECT p.*, 
-           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', pi.produto_id, 'nome', pi.nome_produto, 'preco', pi.preco_unitario, 'quantidade', pi.quantidade, 'imagem', pi.imagem)) 
+           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', pi.produto_id, 'nome', pi.nome_produto, 'preco', pi.preco_unitario, 'quantidade', pi.quantidade)) 
             FROM pedido_itens pi WHERE pi.pedido_id = p.id) as itens
     FROM pedidos p 
     WHERE p.usuario_id = ? 
@@ -245,7 +276,6 @@ app.get('/api/pedidos/:usuarioId', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro ao listar pedidos' });
     }
     
-    // Parse JSON dos itens
     const pedidos = results.map(pedido => ({
       ...pedido,
       itens: pedido.itens ? JSON.parse(pedido.itens) : []
@@ -262,7 +292,7 @@ app.get('/api/pedidos/admin/all', (req, res) => {
            u.nome as usuario_nome,
            u.email as usuario_email,
            u.telefone as usuario_telefone,
-           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', pi.produto_id, 'nome', pi.nome_produto, 'preco', pi.preco_unitario, 'quantidade', pi.quantidade, 'imagem', pi.imagem)) 
+           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', pi.produto_id, 'nome', pi.nome_produto, 'preco', pi.preco_unitario, 'quantidade', pi.quantidade)) 
             FROM pedido_itens pi WHERE pi.pedido_id = p.id) as itens
     FROM pedidos p
     LEFT JOIN usuarios u ON p.usuario_id = u.id
@@ -327,7 +357,10 @@ app.delete('/api/pedidos/:pedidoId', (req, res) => {
 
 // Iniciar servidor
 app.listen(port, () => {
-  console.log(`🚀 Servidor backend rodando em http://localhost:${port}`);
+  console.log(`🚀 Servidor backend rodando na porta ${port}`);
+  console.log(`   CORS configurado para aceitar:`);
+  console.log(`   - https://koenma-sushi-frontend.onrender.com`);
+  console.log(`   - http://localhost:3000`);
   console.log(`   Rotas disponíveis:`);
   console.log(`   GET  /`);
   console.log(`   GET  /api/test`);
