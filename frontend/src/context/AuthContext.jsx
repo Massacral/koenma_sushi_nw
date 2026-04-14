@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://koenma-sushi-nw.onrender.com';
 
 const AuthContext = createContext();
 
