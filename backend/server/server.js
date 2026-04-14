@@ -35,6 +35,27 @@ db.connect((err) => {
 
 // ===== ROTAS =====
 
+// Rota raiz (para teste)
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: '🍣 API do Koenma Sushi está funcionando!',
+    status: 'online',
+    endpoints: {
+      test: 'GET /api/test',
+      login: 'POST /api/login',
+      register: 'POST /api/register',
+      pedidos: {
+        criar: 'POST /api/pedidos',
+        listarUsuario: 'GET /api/pedidos/:usuarioId',
+        listarAdmin: 'GET /api/pedidos/admin/all',
+        atualizarStatus: 'PUT /api/pedidos/:pedidoId/status',
+        cancelar: 'DELETE /api/pedidos/:pedidoId'
+      }
+    }
+  });
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API funcionando!' });
@@ -308,6 +329,7 @@ app.delete('/api/pedidos/:pedidoId', (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Servidor backend rodando em http://localhost:${port}`);
   console.log(`   Rotas disponíveis:`);
+  console.log(`   GET  /`);
   console.log(`   GET  /api/test`);
   console.log(`   POST /api/login`);
   console.log(`   POST /api/register`);
